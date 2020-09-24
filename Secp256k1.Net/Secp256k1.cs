@@ -50,6 +50,7 @@ namespace Secp256k1Net
         readonly Lazy<secp256k1_ecdsa_signature_serialize_der> secp256k1_ecdsa_signature_serialize_der;        
         readonly Lazy<secp256k1_ecdsa_verify> secp256k1_ecdsa_verify;
         readonly Lazy<secp256k1_ecdh> secp256k1_ecdh;
+        readonly Lazy<secp256k1_ecdsa_signature_parse_compact> secp256k1_ecdsa_signature_parse_compact;
 
         const string LIB = "secp256k1";
 
@@ -77,6 +78,7 @@ namespace Secp256k1Net
             secp256k1_ecdsa_verify = LazyDelegate<secp256k1_ecdsa_verify>();
             secp256k1_ecdsa_sign = LazyDelegate<secp256k1_ecdsa_sign>();
             secp256k1_ecdh = LazyDelegate<secp256k1_ecdh>();
+            secp256k1_ecdsa_signature_parse_compact = LazyDelegate<secp256k1_ecdsa_signature_parse_compact>();
 
             _ctx = secp256k1_context_create.Value(((uint)(Flags.SECP256K1_CONTEXT_SIGN | Flags.SECP256K1_CONTEXT_VERIFY)));
         }
@@ -415,9 +417,28 @@ namespace Secp256k1Net
                 throw new ArgumentException($"{nameof(publicKey)} must be {PUBKEY_LENGTH} bytes");
             }
 
-            fixed (byte* sigPtr = &MemoryMarshal.GetReference(signature),
-                msgPtr = &MemoryMarshal.GetReference(messageHash),
+            Span<byte> stackSig = stackalloc byte[64];
+            fixed (byte* tempPtr = &MemoryMarshal.GetReference(stackSig),
+                sigPtr = &MemoryMarshal.GetReference(signature))
+            {
+                var flag = secp256k1_ecdsa_signature_parse_compact.Value(_ctx, tempPtr, sigPtr) == 1;
+                if (!flag)
+                    return false;
+            }
+
+            Span<byte> stackPubkey = stackalloc byte[64];
+            fixed (byte* tempPtr = &MemoryMarshal.GetReference(stackPubkey),
                 pubPtr = &MemoryMarshal.GetReference(publicKey))
+            {
+                uint len = (uint)publicKey.Length;
+                var flag = secp256k1_ec_pubkey_parse.Value(_ctx, tempPtr, pubPtr, len) == 1;
+                if (!flag)
+                    return false;
+            }
+
+            fixed (byte* sigPtr = &MemoryMarshal.GetReference(stackSig),
+                msgPtr = &MemoryMarshal.GetReference(messageHash),
+                pubPtr = &MemoryMarshal.GetReference(stackPubkey))
             {
                 return secp256k1_ecdsa_verify.Value(_ctx, sigPtr, msgPtr, pubPtr) == 1;
             }

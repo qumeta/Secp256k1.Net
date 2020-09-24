@@ -263,6 +263,19 @@ namespace Secp256k1Net
         IntPtr data      // void *data
     );
 
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="ctx"></param>
+    /// <param name="sig"></param>
+    /// <param name="input64"></param>
+    /// <returns></returns>
+    [SymbolName(nameof(secp256k1_ecdsa_signature_parse_compact))]
+    public unsafe delegate int secp256k1_ecdsa_signature_parse_compact(IntPtr ctx,
+        void* sig,    // secp256k1_ecdsa_signature* sig
+        void* input64  // const unsigned char *input64
+    );
+
     // Flags copied from
     // https://github.com/bitcoin-core/secp256k1/blob/452d8e4d2a2f9f1b5be6b02e18f1ba102e5ca0b4/include/secp256k1.h#L157
 
